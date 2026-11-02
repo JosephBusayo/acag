@@ -115,8 +115,9 @@ export function ShopChat({ slug, shopName, shopDescription, initialMessages }: P
           </div>
         )}
 
-        {messages.map((message) => (
-          <Message key={message.id} message={message} slug={slug} onChoose={send} />
+        {messages.map((message, index) => (
+          // Replies saved before ids were generated have an empty id.
+          <Message key={message.id || index} message={message} slug={slug} onChoose={send} />
         ))}
 
         {(status === "submitted" || uploading) && (
@@ -128,7 +129,7 @@ export function ShopChat({ slug, shopName, shopDescription, initialMessages }: P
 
         {(error || notice) && (
           <p role="alert" className="rounded-card bg-danger/10 px-3 py-2 text-sm text-danger">
-            {notice ?? "The assistant is busy right now. Please send that again."}
+            {notice ?? errorText(error)}
           </p>
         )}
         <div ref={bottom} />
@@ -195,6 +196,17 @@ export function ShopChat({ slug, shopName, shopDescription, initialMessages }: P
       </div>
     </main>
   );
+}
+
+// Stream errors arrive as our own sentence; HTTP errors arrive as a JSON body.
+function errorText(error: Error | undefined) {
+  const fallback = "The assistant is busy right now. Please send that again.";
+  if (!error?.message) return fallback;
+  try {
+    return (JSON.parse(error.message) as { error?: string }).error ?? fallback;
+  } catch {
+    return error.message.length < 160 ? error.message : fallback;
+  }
 }
 
 function Message({

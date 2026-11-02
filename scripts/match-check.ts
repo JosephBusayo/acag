@@ -1,4 +1,4 @@
-// Tries the image matcher against real Gemini calls. Run: npm run match:check
+// Tries the image matcher against real Gemini calls, including the backup model. Run: npm run match:check
 import { readFileSync } from "node:fs";
 import { eq } from "drizzle-orm";
 import sharp from "sharp";

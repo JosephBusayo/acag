@@ -1,7 +1,7 @@
-import { google } from "@ai-sdk/google";
 import { generateText, Output } from "ai";
 import sharp from "sharp";
 import { classifyMatches, MAX_MATCHES, modelMatches } from "./match-result";
+import { assistantModel } from "./model";
 
 const INSTRUCTIONS = `You match a shopper's image against a shop's catalogue photos.
 Compare the item's type, shape, sole, colour and materials. Ignore the background, people and photo style.
@@ -33,7 +33,7 @@ export async function matchImage(buyerImage: Buffer, catalogue: CatalogueImage[]
   );
 
   const { output } = await generateText({
-    model: google(process.env.AI_MODEL ?? ""),
+    model: assistantModel(),
     instructions: INSTRUCTIONS,
     messages: [
       {

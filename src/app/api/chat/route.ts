@@ -1,4 +1,3 @@
-import { google } from "@ai-sdk/google";
 import {
   convertToModelMessages,
   createUIMessageStreamResponse,
@@ -9,6 +8,7 @@ import {
 } from "ai";
 import { eq } from "drizzle-orm";
 import { z } from "zod";
+import { assistantModel } from "@/server/ai/model";
 import { buyerInstructions, createBuyerTools } from "@/server/ai/tools";
 import { ensureBuyerSession, getOrCreateConversation } from "@/server/buyer-session";
 import { getShopBySlug } from "@/server/catalogue/public";
@@ -51,23 +51,44 @@ export async function POST(request: Request) {
   const tools = createBuyerTools({ shop, conversationId: conversation.id });
 
   const result = streamText({
-    model: google(process.env.AI_MODEL ?? ""),
+    model: assistantModel(),
     instructions: buyerInstructions(shop),
     messages: await convertToModelMessages(history, { tools }),
     tools,
     stopWhen: stepCountIs(5),
+    maxRetries: 2,
   });
 
   return createUIMessageStreamResponse({
     stream: toUIMessageStream({
       stream: result.stream,
       originalMessages: history,
+      generateMessageId: () => crypto.randomUUID(),
+      onError: (error) => {
+        const status = statusOf(error);
+        console.error("chat model error", status, error instanceof Error ? error.message : error);
+        return status === 429
+          ? "The assistant has hit its free usage limit. Wait a minute, then send that again."
+          : "The assistant is busy right now. Please send that again.";
+      },
       onEnd: async ({ messages }) => {
+        // A failed turn leaves an empty assistant message, which is noise in later prompts.
+        const kept = messages.filter(
+          (m) => m.role !== "assistant" || m.parts.some((p) => p.type !== "step-start"),
+        );
         await db
           .update(conversations)
-          .set({ uiMessages: messages, updatedAt: new Date() })
+          .set({ uiMessages: kept, updatedAt: new Date() })
           .where(eq(conversations.id, conversation.id));
       },
     }),
   });
+}
+
+// Retries wrap the provider error, so look through to the last attempt.
+function statusOf(error: unknown): number | undefined {
+  if (!error || typeof error !== "object") return undefined;
+  if ("statusCode" in error && typeof error.statusCode === "number") return error.statusCode;
+  if ("lastError" in error) return statusOf(error.lastError);
+  return undefined;
 }

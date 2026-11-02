@@ -43,7 +43,12 @@ export async function getPublishedProduct(shopId: string, productId: string) {
 }
 
 export function searchProducts(items: PublicProduct[], query: string) {
-  const terms = query.toLowerCase().split(/\s+/).filter(Boolean);
+  // Trimming a plural lets "sneakers" find "Sneaker".
+  const terms = query
+    .toLowerCase()
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((t) => (t.length > 3 ? t.replace(/s$/, "") : t));
   if (!terms.length) return items;
   const scored = items
     .map((item) => {
