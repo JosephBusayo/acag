@@ -1,6 +1,6 @@
 import { and, eq } from "drizzle-orm";
 import { notFound } from "next/navigation";
-import { Eyebrow } from "@/components/ui/primitives";
+import { PageHeader } from "@/components/ui/primitives";
 import { db } from "@/server/db/client";
 import { products } from "@/server/db/schema";
 import { requireSellerShop } from "@/server/seller-session";
@@ -22,10 +22,7 @@ export default async function EditProductPage({ params }: PageProps<"/dashboard/
 
   return (
     <div className="space-y-6">
-      <div>
-        <Eyebrow className="mb-2">Products</Eyebrow>
-        <h1 className="text-display-sm">{product.name}</h1>
-      </div>
+      <PageHeader eyebrow="Edit product" title={product.name} />
       <ProductForm
         defaults={{
           id: product.id,
@@ -33,6 +30,7 @@ export default async function EditProductPage({ params }: PageProps<"/dashboard/
           description: product.description,
           price: usd(product.priceCents),
           options: formatOptions(product.options),
+          imageUrl: product.imageUrl,
           isAvailable: product.isAvailable,
           negotiationEnabled: product.negotiationEnabled,
           minimumPrice: product.minimumPriceCents ? usd(product.minimumPriceCents) : "",

@@ -1,5 +1,6 @@
 "use client";
 
+import { ShieldCheck } from "lucide-react";
 import Image from "next/image";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -35,10 +36,12 @@ const money = (amountCents: number) => `$${(amountCents / 100).toFixed(2)}`;
 export function ToolResult({
   part,
   slug,
+  said,
   onChoose,
 }: {
   part: ToolPart;
   slug: string;
+  said: Set<string>;
   onChoose: (text: string) => void;
 }) {
   if (part.state !== "output-available") return null;
@@ -63,14 +66,27 @@ export function ToolResult({
       const product = output as unknown as Product;
       if (!product.options?.length) return null;
       return (
-        <div className="flex flex-wrap gap-2">
-          {product.options.flatMap((option) =>
-            option.values.map((value) => (
-              <Chip key={`${option.name}-${value}`} onClick={() => onChoose(`${option.name} ${value}`)}>
-                {value}
-              </Chip>
-            )),
-          )}
+        <div className="space-y-3">
+          {product.options.map((option) => (
+            <div key={option.name}>
+              <p className="mb-1.5 text-xs font-medium text-ink-2">{option.name}</p>
+              <div className="flex flex-wrap gap-2">
+                {option.values.map((value) => {
+                  const choice = `${option.name} ${value}`;
+                  return (
+                    <Chip
+                      key={value}
+                      selected={said.has(choice)}
+                      onClick={() => onChoose(choice)}
+                      className="min-w-11"
+                    >
+                      {value}
+                    </Chip>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
         </div>
       );
     }
@@ -168,8 +184,13 @@ function OrderCard({ order, slug }: { order: OrderSummary; slug: string }) {
           <Row label="Agreed discount" value={`-${money(order.discountCents)}`} />
         )}
         <Row label="Delivery" value={money(order.deliveryCents)} />
-        <Row label="Total" value={`${money(order.totalCents)} USD`} strong />
       </dl>
+      <div className="mt-3 flex items-baseline justify-between border-t border-line pt-3">
+        <span className="text-sm font-medium">Total</span>
+        <span className="font-display text-2xl">
+          {money(order.totalCents)} <span className="text-sm text-ink-2">USD</span>
+        </span>
+      </div>
       <Button
         className="mt-4 w-full"
         onClick={pay}
@@ -177,7 +198,10 @@ function OrderCard({ order, slug }: { order: OrderSummary; slug: string }) {
       >
         {state === "starting" ? "Opening PayPal" : "Pay with PayPal"}
       </Button>
-      <p className="mt-2 text-xs text-ink-2">PayPal Sandbox. No real money moves.</p>
+      <p className="mt-2 flex items-center justify-center gap-1.5 text-xs text-ink-2">
+        <ShieldCheck className="size-3.5" strokeWidth={1.5} aria-hidden />
+        Secure checkout with PayPal Sandbox. No real money moves.
+      </p>
       {state === "error" && (
         <p role="alert" className="mt-2 text-sm text-danger">
           {message}
@@ -187,9 +211,9 @@ function OrderCard({ order, slug }: { order: OrderSummary; slug: string }) {
   );
 }
 
-function Row({ label, value, strong }: { label: string; value: string; strong?: boolean }) {
+function Row({ label, value }: { label: string; value: string }) {
   return (
-    <div className={`flex justify-between ${strong ? "font-medium text-ink" : "text-ink-2"}`}>
+    <div className="flex justify-between text-ink-2">
       <dt>{label}</dt>
       <dd>{value}</dd>
     </div>

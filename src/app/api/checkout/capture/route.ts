@@ -14,6 +14,7 @@ export async function POST(request: Request) {
     return Response.json({
       paymentStatus: order.paymentStatus,
       orderReference: order.orderReference,
+      totalCents: order.totalCents,
     });
   } catch {
     return Response.json(

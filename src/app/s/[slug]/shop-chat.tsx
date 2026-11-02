@@ -2,9 +2,11 @@
 
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport, type UIMessage } from "ai";
-import { ImagePlus, Loader2, SendHorizontal } from "lucide-react";
+import { ArrowUp, ImagePlus, ShieldCheck } from "lucide-react";
 import Image from "next/image";
-import { useEffect, useRef, useState, type FormEvent } from "react";
+import Link from "next/link";
+import { useEffect, useMemo, useRef, useState, type FormEvent, type KeyboardEvent } from "react";
+import { LogoMark } from "@/components/brand/logo";
 import { Chip } from "@/components/ui/primitives";
 import { ToolResult } from "./tool-result";
 
@@ -27,6 +29,7 @@ export function ShopChat({ slug, shopName, shopDescription, initialMessages }: P
   const [uploading, setUploading] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
   const fileInput = useRef<HTMLInputElement>(null);
+  const textbox = useRef<HTMLTextAreaElement>(null);
   const bottom = useRef<HTMLDivElement>(null);
 
   const { messages, sendMessage, status, error, clearError } = useChat({
@@ -45,9 +48,28 @@ export function ShopChat({ slug, shopName, shopDescription, initialMessages }: P
 
   const busy = status === "submitted" || status === "streaming";
 
+  // What the buyer has said, so chips they already picked show as selected.
+  const said = useMemo(
+    () =>
+      new Set(
+        messages
+          .filter((m) => m.role === "user")
+          .flatMap((m) => m.parts.flatMap((p) => (p.type === "text" ? [p.text] : []))),
+      ),
+    [messages],
+  );
+
   useEffect(() => {
     bottom.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, status]);
+
+  // Grow the message box with its content, up to about five lines.
+  useEffect(() => {
+    const el = textbox.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = `${Math.min(el.scrollHeight, 128)}px`;
+  }, [input]);
 
   const send = (text: string) => {
     if (!text.trim() || busy) return;
@@ -88,43 +110,85 @@ export function ShopChat({ slug, shopName, shopDescription, initialMessages }: P
     send(input);
   };
 
+  // Enter sends; Shift+Enter starts a new line.
+  const onKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
+    if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing) {
+      event.preventDefault();
+      send(input);
+    }
+  };
+
   const hasMessages = messages.length > 0;
 
   return (
     <main className="mx-auto flex h-dvh w-full max-w-2xl flex-col">
-      <header className="flex items-center justify-between border-b border-line px-4 py-3">
-        <div>
-          <h1 className="text-lg leading-tight">{shopName}</h1>
-          <p className="text-xs text-ink-2">{shopDescription}</p>
+      <header className="flex items-center gap-3 border-b border-line px-4 py-3">
+        <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-ink font-display text-lg text-white">
+          {shopName.charAt(0)}
+        </span>
+        <div className="min-w-0 flex-1">
+          <h1 className="truncate text-lg leading-tight">{shopName}</h1>
+          <p className="truncate text-xs text-ink-2">{shopDescription}</p>
         </div>
-        <span className="shrink-0 rounded-chip bg-surface px-2 py-1 text-xs text-ink-2">
+        <span className="shrink-0 rounded-chip bg-warning/10 px-2 py-1 text-xs font-medium text-warning">
           Sandbox
         </span>
       </header>
 
       <div className="flex-1 space-y-4 overflow-y-auto px-4 py-6">
         {!hasMessages && (
-          <div className="space-y-4 py-8">
-            <p className="font-display text-display-sm">
-              Saw something you like?{" "}
-              <em className="font-normal text-ink-3">Show me.</em>
-            </p>
-            <p className="text-ink-2">
-              Send a screenshot, or ask about anything in the shop.
-            </p>
+          <div className="space-y-6 py-4">
+            <div className="space-y-2">
+              <p className="font-display text-display-sm">
+                Saw something you like? <em className="font-normal text-ink-3">Show me.</em>
+              </p>
+              <p className="text-ink-2">Send a screenshot, or ask about anything in the shop.</p>
+            </div>
+            <div>
+              <p className="mb-2 text-sm font-medium">Try a sample screenshot</p>
+              <div className="grid grid-cols-2 gap-3">
+                {SAMPLES.map((sample) => (
+                  <button
+                    key={sample.file}
+                    type="button"
+                    disabled={busy || uploading}
+                    onClick={() => sendSample(sample.file)}
+                    className="group overflow-hidden rounded-card bg-surface-raised text-left shadow-raised transition-transform hover:-translate-y-0.5 disabled:opacity-50"
+                  >
+                    <Image
+                      src={sample.file}
+                      alt=""
+                      width={320}
+                      height={240}
+                      className="aspect-[4/3] w-full object-cover"
+                    />
+                    <span className="block px-3 py-2 text-sm">{sample.label}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
           </div>
         )}
 
         {messages.map((message, index) => (
           // Replies saved before ids were generated have an empty id.
-          <Message key={message.id || index} message={message} slug={slug} onChoose={send} />
+          <Message key={message.id || index} message={message} slug={slug} said={said} onChoose={send} />
         ))}
 
         {(status === "submitted" || uploading) && (
-          <p className="flex items-center gap-2 text-sm text-ink-2">
-            <Loader2 className="size-4 animate-spin" strokeWidth={1.5} aria-hidden />
-            {uploading ? "Uploading your image" : "Thinking"}
-          </p>
+          <div className="flex items-end gap-2" aria-live="polite">
+            <LogoMark className="size-7 shrink-0" />
+            <div className="flex items-center gap-1 rounded-card bg-surface-raised px-3 py-3 shadow-raised">
+              <span className="sr-only">{uploading ? "Uploading your image" : "The shop is typing"}</span>
+              {[0, 1, 2].map((dot) => (
+                <span
+                  key={dot}
+                  className="size-1.5 rounded-full bg-ink-3"
+                  style={{ animation: `typing 1.2s ${dot * 0.15}s infinite` }}
+                />
+              ))}
+            </div>
+          </div>
         )}
 
         {(error || notice) && (
@@ -137,17 +201,7 @@ export function ShopChat({ slug, shopName, shopDescription, initialMessages }: P
 
       <div className="border-t border-line bg-bg px-4 pt-3 pb-[max(12px,env(safe-area-inset-bottom))]">
         {!hasMessages && (
-          <div className="mb-3 flex gap-2 overflow-x-auto pb-1">
-            {SAMPLES.map((sample) => (
-              <Chip
-                key={sample.file}
-                disabled={busy || uploading}
-                onClick={() => sendSample(sample.file)}
-                className="shrink-0"
-              >
-                {sample.label}
-              </Chip>
-            ))}
+          <div className="-mx-4 mb-3 flex gap-2 overflow-x-auto px-4 pb-1">
             {STARTERS.map((text) => (
               <Chip key={text} disabled={busy} onClick={() => send(text)} className="shrink-0">
                 {text}
@@ -155,7 +209,10 @@ export function ShopChat({ slug, shopName, shopDescription, initialMessages }: P
             ))}
           </div>
         )}
-        <form onSubmit={submit} className="flex items-center gap-2">
+        <form
+          onSubmit={submit}
+          className="flex items-end gap-2 rounded-card border border-line bg-surface-raised p-1.5 focus-within:border-ink"
+        >
           <input
             ref={fileInput}
             type="file"
@@ -173,26 +230,36 @@ export function ShopChat({ slug, shopName, shopDescription, initialMessages }: P
             aria-label="Add a screenshot"
             disabled={busy || uploading}
             onClick={() => fileInput.current?.click()}
-            className="flex size-11 shrink-0 items-center justify-center rounded-card bg-surface text-ink hover:bg-surface-sunken disabled:opacity-50"
+            className="flex size-11 shrink-0 items-center justify-center rounded-chip text-ink-2 hover:bg-surface hover:text-ink disabled:opacity-50"
           >
             <ImagePlus className="size-5" strokeWidth={1.5} aria-hidden />
           </button>
-          <input
+          <textarea
+            ref={textbox}
+            rows={1}
             value={input}
             onChange={(event) => setInput(event.target.value)}
+            onKeyDown={onKeyDown}
             placeholder="Message the shop"
             aria-label="Message"
-            className="min-h-11 min-w-0 flex-1 rounded-card border border-line bg-surface-raised px-3 text-base outline-none placeholder:text-ink-3 focus:border-ink"
+            className="min-h-11 min-w-0 flex-1 resize-none bg-transparent py-2.5 text-base leading-6 outline-none placeholder:text-ink-3"
           />
           <button
             type="submit"
             aria-label="Send"
             disabled={busy || !input.trim()}
-            className="flex size-11 shrink-0 items-center justify-center rounded-card bg-ink text-white disabled:opacity-40"
+            className="flex size-11 shrink-0 items-center justify-center rounded-chip bg-ink text-white transition-opacity disabled:opacity-30"
           >
-            <SendHorizontal className="size-5" strokeWidth={1.5} aria-hidden />
+            <ArrowUp className="size-5" strokeWidth={1.75} aria-hidden />
           </button>
         </form>
+        <p className="mt-2 flex items-center justify-center gap-1.5 text-xs whitespace-nowrap text-ink-2">
+          <ShieldCheck className="size-3.5" strokeWidth={1.5} aria-hidden />
+          PayPal Sandbox ·
+          <Link href="/" className="hover:text-ink">
+            Powered by <span className="font-display font-semibold text-ink">acag</span>
+          </Link>
+        </p>
       </div>
     </main>
   );
@@ -209,48 +276,60 @@ function errorText(error: Error | undefined) {
   }
 }
 
+// The model is told to write plain text, but older replies may still carry markdown emphasis.
+const plain = (text: string) => text.replace(/\*\*(.+?)\*\*/g, "$1").replace(/(^|\s)\*(\S.*?)\*/g, "$1$2");
+
 function Message({
   message,
   slug,
+  said,
   onChoose,
 }: {
   message: UIMessage;
   slug: string;
+  said: Set<string>;
   onChoose: (text: string) => void;
 }) {
   const buyer = message.role === "user";
   const { imageUrl } = (message.metadata ?? {}) as { imageUrl?: string };
+  const visible = message.parts.some(
+    (p) => (p.type === "text" && p.text.trim()) || p.type.startsWith("tool-"),
+  );
+  if (!buyer && !visible) return null;
 
   return (
-    <div className={`flex flex-col gap-2 ${buyer ? "items-end" : "items-start"}`}>
-      {imageUrl && (
-        <Image
-          src={imageUrl}
-          alt="Your upload"
-          width={200}
-          height={200}
-          unoptimized
-          className="size-40 rounded-card object-cover"
-        />
-      )}
-      {message.parts.map((part, index) => {
-        if (part.type === "text" && part.text.trim()) {
-          return (
-            <p
-              key={index}
-              className={`max-w-[85%] rounded-card px-3 py-2 whitespace-pre-wrap ${
-                buyer ? "bg-ink text-white" : "bg-surface-raised shadow-raised"
-              }`}
-            >
-              {part.text}
-            </p>
-          );
-        }
-        if (part.type.startsWith("tool-")) {
-          return <ToolResult key={index} part={part} slug={slug} onChoose={onChoose} />;
-        }
-        return null;
-      })}
+    <div className={`flex gap-2 ${buyer ? "justify-end" : "items-start"}`}>
+      {!buyer && <LogoMark className="mt-1 size-7 shrink-0" />}
+      <div className={`flex min-w-0 flex-col gap-2 ${buyer ? "items-end" : "flex-1 items-start"}`}>
+        {imageUrl && (
+          <Image
+            src={imageUrl}
+            alt="Your upload"
+            width={200}
+            height={200}
+            unoptimized
+            className="size-40 rounded-card object-cover"
+          />
+        )}
+        {message.parts.map((part, index) => {
+          if (part.type === "text" && part.text.trim()) {
+            return (
+              <p
+                key={index}
+                className={`max-w-[85%] rounded-card px-3.5 py-2.5 whitespace-pre-wrap ${
+                  buyer ? "rounded-br-tile bg-ink text-white" : "rounded-tl-tile bg-surface-raised shadow-raised"
+                }`}
+              >
+                {buyer ? part.text : plain(part.text)}
+              </p>
+            );
+          }
+          if (part.type.startsWith("tool-")) {
+            return <ToolResult key={index} part={part} slug={slug} said={said} onChoose={onChoose} />;
+          }
+          return null;
+        })}
+      </div>
     </div>
   );
 }

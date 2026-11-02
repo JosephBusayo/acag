@@ -34,7 +34,7 @@ DM Sans and Geist are both free on Google Fonts, so no substitution is needed. T
 | `--border` | `#E4E0DD` | Dividers, oversized numerals |
 | `--ink` | `#251F19` | Primary text, dark buttons |
 | `--ink-2` | `#68615A` | Secondary text |
-| `--ink-3` | `#948B81` | Muted text, italic emphasis |
+| `--ink-3` | `#7A7168` | Muted text, italic emphasis (darkened from the reference's `#948B81` to reach 4.5:1 on `--bg`) |
 | `--accent` | `#F48D16` | Accent, bullets, chevron tile, eyebrows |
 | `--accent-soft` | `#F48D16` at 25–60% | Scatter squares |
 

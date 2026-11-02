@@ -10,7 +10,7 @@ import { endSellerSession, requireSellerShop, startSellerSession } from "@/serve
 import { productInput, toCents } from "@/server/seller/product-input";
 import { ImageRejected, storeImage } from "@/server/storage";
 
-export type FormState = { error?: string; saved?: boolean };
+export type FormState = { error?: string; savedAt?: number };
 
 export async function enterDemo() {
   const [shop] = await db.select().from(shops).where(eq(shops.slug, "tenth-lane"));
@@ -69,7 +69,7 @@ export async function saveProduct(_: FormState, form: FormData): Promise<FormSta
     await db.insert(products).values({ ...values, shopId: shop.id, imageUrl: imageUrl ?? "" });
   }
   revalidatePath("/dashboard/products");
-  redirect("/dashboard/products");
+  redirect("/dashboard/products?saved=1");
 }
 
 export async function archiveProduct(form: FormData) {
@@ -115,5 +115,5 @@ export async function saveSettings(_: FormState, form: FormData): Promise<FormSt
     .set({ ...fields, deliveryFeeCents: toCents(deliveryFee), updatedAt: new Date() })
     .where(eq(shops.id, shop.id));
   revalidatePath("/dashboard", "layout");
-  return { saved: true };
+  return { savedAt: Date.now() };
 }

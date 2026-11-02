@@ -1,4 +1,4 @@
-import type { ComponentProps } from "react";
+import type { ComponentProps, ReactNode } from "react";
 
 export function Input({ className = "", ...props }: ComponentProps<"input">) {
   return (
@@ -47,9 +47,48 @@ export function Chip({
   return (
     <button
       aria-pressed={selected}
-      className={`min-h-9 rounded-chip px-3 text-sm transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent ${tone} ${className}`}
+      className={`min-h-11 rounded-chip px-3 text-sm transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent ${tone} ${className}`}
       {...props}
     />
+  );
+}
+
+// A checkbox drawn as a switch, so it still submits with the form.
+export function Switch({
+  label,
+  className = "",
+  ...props
+}: Omit<ComponentProps<"input">, "type"> & { label: string }) {
+  return (
+    <label className={`flex min-h-11 cursor-pointer items-center justify-between gap-4 ${className}`}>
+      <span className="text-sm font-medium">{label}</span>
+      <input
+        type="checkbox"
+        role="switch"
+        className="relative h-6 w-10 shrink-0 cursor-pointer appearance-none rounded-full bg-surface-sunken transition-colors before:absolute before:top-0.5 before:left-0.5 before:size-5 before:rounded-full before:bg-white before:shadow before:transition-transform checked:bg-ink checked:before:translate-x-4"
+        {...props}
+      />
+    </label>
+  );
+}
+
+export function PageHeader({
+  eyebrow,
+  title,
+  action,
+}: {
+  eyebrow: string;
+  title: ReactNode;
+  action?: ReactNode;
+}) {
+  return (
+    <div className="flex flex-wrap items-end justify-between gap-4">
+      <div>
+        <Eyebrow className="mb-2">{eyebrow}</Eyebrow>
+        <h1 className="text-display-sm">{title}</h1>
+      </div>
+      {action}
+    </div>
   );
 }
 
