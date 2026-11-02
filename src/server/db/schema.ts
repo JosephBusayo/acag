@@ -79,6 +79,8 @@ export const conversations = pgTable("conversations", {
   shopId: uuid("shop_id").notNull().references(() => shops.id),
   sessionId: text("session_id").notNull(),
   buyerDisplayName: text("buyer_display_name"),
+  // Full chat history as the server saw it. Clients only ever send their newest message.
+  uiMessages: jsonb("ui_messages").$type<unknown[]>().notNull().default([]),
   createdAt: createdAt(),
   updatedAt: updatedAt(),
 });
