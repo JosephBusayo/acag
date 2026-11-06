@@ -11,12 +11,12 @@ export default function LoginPage() {
         <Logo />
       </Link>
       <Card raised className="w-full max-w-md space-y-4 p-6">
-        <Eyebrow>Seller dashboard</Eyebrow>
+        <Eyebrow>Stylist dashboard</Eyebrow>
         <h1 className="text-display-sm">
-          Tenth Lane <em className="font-normal text-ink-3">demo shop</em>
+          Crown &amp; Coil <em className="font-normal text-ink-3">demo salon</em>
         </h1>
         <p className="text-sm text-ink-2">
-          This prototype uses one demo seller and one PayPal Sandbox merchant account, with no
+          This prototype uses one demo stylist and one PayPal Sandbox merchant account, with no
           password needed. Changes you make are visible to anyone testing the demo.
         </p>
         <form action={enterDemo}>

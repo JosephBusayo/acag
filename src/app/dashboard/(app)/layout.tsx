@@ -21,7 +21,7 @@ export default async function DashboardLayout({ children }: LayoutProps<"/dashbo
             target="_blank"
             className="mt-0.5 inline-flex items-center gap-1 text-xs text-ink-2 hover:text-ink"
           >
-            View shop <ExternalLink className="size-3" strokeWidth={1.5} aria-hidden />
+            View booking page <ExternalLink className="size-3" strokeWidth={1.5} aria-hidden />
           </Link>
         </div>
         <SideNav />
@@ -39,7 +39,7 @@ export default async function DashboardLayout({ children }: LayoutProps<"/dashbo
             <Logo />
           </Link>
           <Link href={`/s/${shop.slug}`} className="rounded-chip px-3 py-2 text-sm text-ink-2 hover:bg-surface">
-            View shop
+            View booking page
           </Link>
         </header>
         <main className="mx-auto w-full max-w-5xl px-4 pt-6 pb-24 md:px-10 md:py-10">{children}</main>
