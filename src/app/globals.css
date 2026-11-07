@@ -90,3 +90,8 @@ h3 {
     scroll-behavior: auto !important;
   }
 }
+
+/* Bryntum Calendar on the bookings page: unpaid holds show faded. */
+.acag-calendar .acag-held {
+  opacity: 0.5;
+}

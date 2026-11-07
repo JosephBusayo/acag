@@ -1,14 +1,46 @@
-import { and, asc, eq, gte } from "drizzle-orm";
+import { and, asc, eq, gte, inArray } from "drizzle-orm";
 import { CalendarCheck, CircleDollarSign, Wallet } from "lucide-react";
 import Link from "next/link";
 import { ButtonLink } from "@/components/ui/button";
 import { Card, PageHeader } from "@/components/ui/primitives";
+import { addDays, dayLabel, weekdayOf } from "@/server/booking/time";
 import { db } from "@/server/db/client";
 import { bookings } from "@/server/db/schema";
 import { requireSellerShop } from "@/server/seller-session";
 import { BookingsList } from "./bookings-list";
 import { CopyLink } from "./copy-link";
-import { balanceOf, money } from "./format";
+import { balanceOf, dayKey, money } from "./format";
+import { OverviewCharts, type StyleCount, type WeekTakings } from "./overview-charts";
+
+type Booking = typeof bookings.$inferSelect;
+
+// Eight appointment weeks (three back, this one, four ahead), Monday first, in salon time.
+function chartData(items: Booking[], timeZone: string) {
+  const monday = (day: string) => addDays(day, -((weekdayOf(day) + 6) % 7));
+  const thisWeek = monday(dayKey(new Date(), timeZone));
+  const weeks = new Map<string, WeekTakings>();
+  for (let i = -3; i <= 4; i++) {
+    const start = addDays(thisWeek, i * 7);
+    // "9 Nov" from dayLabel's "Monday 9 Nov".
+    const week = i === 0 ? "This week" : dayLabel(start).split(" ").slice(1).join(" ");
+    weeks.set(start, { week, paypal: 0, salon: 0 });
+  }
+
+  const counts = new Map<string, number>();
+  for (const b of items) {
+    counts.set(b.styleNameSnapshot, (counts.get(b.styleNameSnapshot) ?? 0) + 1);
+    const week = weeks.get(monday(dayKey(b.startsAt, timeZone)));
+    if (!week) continue;
+    const viaPayPal = b.paymentStatus === "paid" ? (b.amountDueCents ?? 0) : 0;
+    week.paypal += viaPayPal / 100;
+    if (b.status !== "no_show") week.salon += Math.max(b.priceCents - viaPayPal, 0) / 100;
+  }
+  const styles: StyleCount[] = [...counts]
+    .map(([style, bookings]) => ({ style, bookings }))
+    .sort((a, b) => b.bookings - a.bookings)
+    .slice(0, 6);
+  return { weeks: [...weeks.values()], styles };
+}
 
 export default async function OverviewPage() {
   const shop = await requireSellerShop();
@@ -21,6 +53,12 @@ export default async function OverviewPage() {
     .select({ amountPaidCents: bookings.amountPaidCents })
     .from(bookings)
     .where(and(eq(bookings.shopId, shop.id), eq(bookings.paymentStatus, "paid")));
+
+  const booked = await db
+    .select()
+    .from(bookings)
+    .where(and(eq(bookings.shopId, shop.id), inArray(bookings.status, ["confirmed", "completed", "no_show"])));
+  const { weeks, styles } = chartData(booked, shop.timezone);
 
   const collected = paid.reduce((sum, b) => sum + b.amountPaidCents, 0);
   const toCollect = upcoming.reduce((sum, b) => sum + balanceOf(b), 0);
@@ -54,6 +92,7 @@ export default async function OverviewPage() {
           </Card>
         ))}
       </div>
+      <OverviewCharts weeks={weeks} styles={styles} />
       <section className="space-y-3">
         <div className="flex items-center justify-between">
           <h2 className="text-xl">Coming up</h2>
